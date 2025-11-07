@@ -1,3 +1,4 @@
 /heatmap*.json*
 /keymap*.yaml
 zmk-heatmap
+zmk-heatmap.exe
