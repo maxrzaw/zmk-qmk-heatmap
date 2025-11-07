@@ -39,11 +39,17 @@ var generateCmd = &cobra.Command{
 		sort.Slice(heatmap.KeyPresses, func(i, j int) bool {
 			return heatmap.KeyPresses[i].GetTotalPressCounts() < heatmap.KeyPresses[j].GetTotalPressCounts()
 		})
-		maxPress := heatmap.KeyPresses[len(heatmap.KeyPresses)-1].GetTotalPressCounts()
+		maxPress := 0
+		if len(heatmap.KeyPresses) > 0 {
+			maxPress = heatmap.KeyPresses[len(heatmap.KeyPresses)-1].GetTotalPressCounts()
+		}
 		sort.Slice(heatmap.ComboPresses, func(i, j int) bool {
 			return heatmap.ComboPresses[i].GetTotalPressCounts() < heatmap.ComboPresses[j].GetTotalPressCounts()
 		})
-		maxCombo := heatmap.ComboPresses[len(heatmap.ComboPresses)-1].GetTotalPressCounts()
+		maxCombo := 0
+		if len(heatmap.ComboPresses) > 0 {
+			maxCombo = heatmap.ComboPresses[len(heatmap.ComboPresses)-1].GetTotalPressCounts()
+		}
 
 		max := maxPress
 		if maxCombo > max {
