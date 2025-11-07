@@ -7,7 +7,8 @@ Generating a heatmap is done in two steps:
 1. **Extract your keymap**: in order to properly parse combo's as combo's instead of two keystrokes we need to load
    your keymap.
 
-   Generate your keymap with https://github.com/caksoylar/keymap-drawer
+   Generate your keymap with https://github.com/caksoylar/keymap-drawer/  
+   I find the [web app](https://keymap-drawer.streamlit.app/) pretty useful.
 
    ```
    keymap parse -c 10 -z <your-zmk-config-project>/config/corne.keymap > keymap.yaml
