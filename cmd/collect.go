@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -105,33 +106,64 @@ func loadHeatMap(heatmapFile string) (heatmap_ *heatmap.Heatmap, err error) {
 // isZMKKeyboard attempts to detect if a serial port is a ZMK keyboard
 // by reading a few lines and checking for ZMK-style logging patterns
 func isZMKKeyboard(portPath string) bool {
-	c := &serial.Config{Name: portPath, Baud: 115200, ReadTimeout: time.Second * 2}
-	s, err := serial.OpenPort(c)
-	if err != nil {
+	log.Printf("Checking port %s for ZMK keyboard...\n", portPath)
+
+	// Use a channel and goroutine with context for timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	type result struct {
+		isZMK bool
+		err   error
+	}
+	resultChan := make(chan result, 1)
+
+	go func() {
+		// Attempt to open the port
+		c := &serial.Config{Name: portPath, Baud: 115200, ReadTimeout: time.Millisecond * 500}
+		s, err := serial.OpenPort(c)
+		if err != nil {
+			// Port couldn't be opened (expected for most ports during scan)
+			resultChan <- result{isZMK: false, err: err}
+			return
+		}
+		defer s.Close()
+
+		// Try to read a few lines to see if it looks like ZMK output
+		scanner := bufio.NewScanner(s)
+		linesRead := 0
+		maxLines := 10
+		foundZMK := false
+
+		for scanner.Scan() && linesRead < maxLines {
+			line := scanner.Text()
+			linesRead++
+
+			// Check for common ZMK logging patterns
+			if strings.Contains(line, "[") &&
+				(strings.Contains(line, "<dbg>") ||
+					strings.Contains(line, "<inf>") ||
+					strings.Contains(line, "position_state_changed") ||
+					strings.Contains(line, "zmk")) {
+				foundZMK = true
+				break
+			}
+		}
+
+		resultChan <- result{isZMK: foundZMK, err: scanner.Err()}
+	}()
+
+	// Wait for either completion or timeout
+	select {
+	case res := <-resultChan:
+		if res.err != nil && !res.isZMK {
+			return false
+		}
+		return res.isZMK
+	case <-ctx.Done():
+		log.Printf("Port %s: timeout after 3 seconds, skipping\n", portPath)
 		return false
 	}
-	defer s.Close()
-
-	// Try to read a few lines to see if it looks like ZMK output
-	scanner := bufio.NewScanner(s)
-	linesRead := 0
-	maxLines := 10
-
-	for scanner.Scan() && linesRead < maxLines {
-		line := scanner.Text()
-		linesRead++
-
-		// Check for common ZMK logging patterns
-		if strings.Contains(line, "[") &&
-			(strings.Contains(line, "<dbg>") ||
-				strings.Contains(line, "<inf>") ||
-				strings.Contains(line, "position_state_changed") ||
-				strings.Contains(line, "zmk")) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // Scan for possible keyboards and returns the path for the keyboard if one and only one is connected
