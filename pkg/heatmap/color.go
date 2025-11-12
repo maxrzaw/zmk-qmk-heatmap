@@ -2,12 +2,41 @@ package heatmap
 
 import (
 	"image/color"
+	"strconv"
 )
 
 type RGB struct {
 	R uint8
 	G uint8
 	B uint8
+}
+
+func FromHex(hex string) RGB {
+	var r, g, b uint8
+	if len(hex) == 7 && hex[0] == '#' {
+		rv, err := strconv.ParseUint(hex[1:3], 16, 8)
+		if err != nil {
+			return RGB{}
+		}
+		gv, err := strconv.ParseUint(hex[3:5], 16, 8)
+		if err != nil {
+			return RGB{}
+		}
+		bv, err := strconv.ParseUint(hex[5:7], 16, 8)
+		if err != nil {
+			return RGB{}
+		}
+		r = uint8(rv)
+		g = uint8(gv)
+		b = uint8(bv)
+		return RGB{R: r, G: g, B: b}
+	}
+
+	panic("invalid hex color format")
+}
+
+func ToHex(color RGB) string {
+	return "#" + strconv.FormatUint(uint64(color.R), 16) + strconv.FormatUint(uint64(color.G), 16) + strconv.FormatUint(uint64(color.B), 16)
 }
 
 func RgbaToRgb(color color.RGBA, background RGB) RGB {

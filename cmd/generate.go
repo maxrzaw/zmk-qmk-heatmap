@@ -14,12 +14,16 @@ import (
 )
 
 var inputParam string
+var coldColorParam string
+var hotColorParam string
 
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
 	generateCmd.Flags().StringVarP(&inputParam, "input", "i", "heatmap.json", "e.g. ~/heatmap.json")
 	generateCmd.Flags().StringVarP(&keymapParam, "keymap", "m", "keymap.yaml", "e.g. ~/keymap.yaml")
+	generateCmd.Flags().StringVar(&coldColorParam, "cold-color", "", "e.g. #ffffff")
+	generateCmd.Flags().StringVar(&hotColorParam, "hot-color", "", "e.g. #ff0000")
 	generateCmd.Flags().IntVarP(&numSensors, "sensors", "s", 0, "the number of sensors (encoders) of the keyboard, this value is needed to properly collect combos")
 	generateCmd.Flags().Bool("dark", false, "darkmode")
 }
@@ -66,20 +70,31 @@ var generateCmd = &cobra.Command{
 		}
 		log.Println("Loading keymap", keymapFile)
 
-		if darkMode {
-			fmt.Printf("svg { background-color: #0e1117; }\nrect.key { fill: #131419; }\n")
+		keyBackgroundColor := heatmappkg.RGB{R: 255, G: 255, B: 255}
+		if coldColorParam != "" {
+			keyBackgroundColor = heatmappkg.FromHex(coldColorParam)
 		}
+
+		keyForegroundColor := heatmappkg.RGB{R: 255, G: 0, B: 0}
+		if hotColorParam != "" {
+			keyForegroundColor = heatmappkg.FromHex(hotColorParam)
+		}
+
+		if darkMode {
+			// set key background color if not set by user
+			if coldColorParam == "" {
+				keyBackgroundColor = heatmappkg.RGB{R: 19, G: 20, B: 25}
+			}
+			fmt.Printf("svg { background-color: #0e1117; }\n")
+		}
+
+		fmt.Printf("rect.key { fill: %s; }\n", heatmappkg.ToHex(keyBackgroundColor))
 
 		for _, press := range heatmap.KeyPresses {
 			perc := (float32(press.GetTotalPressCounts()) / float32(max))
 			luminance := uint8(255 * perc)
 
-			backgroundColor := heatmappkg.RGB{R: 255, G: 255, B: 255}
-			if darkMode {
-				backgroundColor = heatmappkg.RGB{R: 19, G: 20, B: 25}
-			}
-
-			color := heatmappkg.RgbaToRgb(color.RGBA{R: 255, G: 0, B: 0, A: luminance}, backgroundColor)
+			color := heatmappkg.RgbaToRgb(color.RGBA{R: keyForegroundColor.R, G: keyForegroundColor.G, B: keyForegroundColor.B, A: luminance}, keyBackgroundColor)
 
 			/*
 					as an alternative you can do this, which draws a border around the text, this is useful when you want to
@@ -102,12 +117,8 @@ var generateCmd = &cobra.Command{
 
 			perc := (float32(press.GetTotalPressCounts()) / float32(max))
 			luminance := uint8(255 * perc)
-			backgroundColor := heatmappkg.RGB{R: 255, G: 255, B: 255}
-			if darkMode {
-				backgroundColor = heatmappkg.RGB{R: 19, G: 20, B: 25}
-			}
 
-			color := heatmappkg.RgbaToRgb(color.RGBA{R: 255, G: 0, B: 0, A: luminance}, backgroundColor)
+			color := heatmappkg.RgbaToRgb(color.RGBA{R: keyForegroundColor.R, G: keyForegroundColor.G, B: keyForegroundColor.B, A: luminance}, keyBackgroundColor)
 			fmt.Printf("svg > g:nth-of-type(%d) .combopos-%d rect { stroke: #c9cccf; stroke-width: 1; fill: #%02X%02X%02X; }\n", press.Layer+1, comboIndex, color.R, color.G, color.B)
 		}
 	},
